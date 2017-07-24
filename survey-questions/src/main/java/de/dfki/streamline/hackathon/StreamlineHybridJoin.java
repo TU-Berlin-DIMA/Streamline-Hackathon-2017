@@ -16,14 +16,25 @@
 
 package de.dfki.streamline.hackathon;
 
+import de.dfki.streamline.hackathon.common.BatchPayload;
+import de.dfki.streamline.hackathon.common.EnrichedPayload;
+import de.dfki.streamline.hackathon.common.StreamPayload;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,33 +51,53 @@ public class StreamlineHybridJoin {
     public static void main(String[] args) throws Exception {
         final StreamExecutionEnvironment env = createExecutionEnviromet();
 
-        String sideInputPath = "hdfs://data/";
-        final SideInput<Tuple2<String, String>> sideInput = createKeyeSideInput(sideInputPath, env);
+        String sideInputPath = "hdfs://cluster:9001/path/to/batch/data";
+        final SideInput<BatchPayload> sideInput = createKeyedSideInput(sideInputPath, env);
 
         String host = "streamline-hackathon.de";
-        Integer port = 8080;
-        DataStream<Tuple3<Long, String, String>> realTimeStream = createSocketSourceInput(host, port, env);
+        DataStream<StreamPayload> realTimeStream = createStreamSource(host, 8080, env);
 
 
-        DataStream<Tuple4<Long, Long, String, Integer>> joinedWithBatch = realTimeStream.keyBy(1).
-                map(new RichMapFunction<Tuple3<Long, String, String>, Tuple4<Long, Long, String, Integer>>() {
-                    private HashMap<String, Integer> joinHM = null;
+        DataStream<EnrichedPayload> joinedWithBatch = realTimeStream.keyBy(1)
+            .flatMap(new RichFlatMapFunction<StreamPayload, EnrichedPayload>() {
 
-                    @Override
-                    public Tuple4<Long, Long, String, Integer> map(Tuple3<Long, String, String> tuple) throws Exception {
-                        if (joinHM == null) {
-                            joinHM = new HashMap<>();
-                            ArrayList<Tuple2<String, String>> sideRecords = (ArrayList<Tuple2<String, String>>) getRuntimeContext().getSideInput(sideInput);
-                            for (Tuple2<String, String> sideTuple : sideRecords) {
-                                joinHM.put(sideTuple.f0 + sideTuple.f1, joinHM.get(sideTuple.f0 + sideTuple.f1) + 1);
-                            }
+                private MapState<Integer, EnrichedPayload> joinTable;
+                private boolean isLoaded = false;
+
+                @Override
+                public void open(Configuration parameters) throws Exception {
+                    super.open(parameters);
+                    MapStateDescriptor<Integer, EnrichedPayload> mapDescriptor =
+                            new MapStateDescriptor<>("join-table", Integer.class, EnrichedPayload.class);
+                    joinTable = getRuntimeContext().getMapState(mapDescriptor);
+                }
+
+                @Override
+                public void flatMap(StreamPayload value, Collector<EnrichedPayload> out) throws Exception {
+                    Iterable<BatchPayload> batchData = getRuntimeContext().getSideInput(sideInput);
+                    if (!isLoaded) {
+                        for (BatchPayload e : batchData) {
+                            joinTable.put(e.getId(), new EnrichedPayload(e));
                         }
-
-                        return new Tuple4<>(System.currentTimeMillis() - tuple.f0, tuple.f0, tuple.f1, joinHM.get(tuple.f1 + tuple.f2));
+                        isLoaded = true;
                     }
-                }).withSideInput(sideInput);
+                    int key = value.getId();
+                    if (joinTable.contains(key)) {
+                        joinTable.put(key, joinTable.get(key).enrich(value));
+                    } else {
+                        joinTable.put(key, new EnrichedPayload(value));
+                    }
+                    out.collect(joinTable.get(key));
+                }
+            }).withSideInput(sideInput);
 
-        joinedWithBatch.print().setParallelism(1);
+
+        joinedWithBatch.addSink(new SinkFunction<EnrichedPayload>() {
+            @Override
+            public void invoke(EnrichedPayload value) throws Exception {
+
+            }
+        });
 
         env.execute();
     }
@@ -78,45 +109,25 @@ public class StreamlineHybridJoin {
         return env;
     }
 
-    private static DataStream<Tuple3<Long, String, String>> createSocketSourceInput(String host, Integer port, StreamExecutionEnvironment env) {
+    private static DataStream<StreamPayload> createStreamSource(String host, Integer port, StreamExecutionEnvironment env) {
         DataStream<String> socketSource = env.socketTextStream(host, port);
 
-        return socketSource.map(new MapFunction<String, Tuple3<Long, String, String>>() {
-            @Override
-            public Tuple3<Long, String, String> map(String s) throws Exception {
-                String[] fields = s.split(",");
-                Long ts;
-                try {
-                    ts = new Long(fields[0]);
-                } catch (Exception e) {
-                    ts = -1L;
-                }
-                String coilID = fields[3];
-                String features = "";
-                for (int i = 4; i < fields.length; i++) {
-                    features = features + fields[i] + ",";
-                }
-                return new Tuple3<Long, String, String>(ts, coilID, features);
-            }
-        });
+        return null;
     }
 
-    private static SideInput<Tuple2<String, String>> createKeyeSideInput(String sideInputPath, StreamExecutionEnvironment env) {
-        DataStream<Tuple2<String, String>> sideSource = env.readTextFile(sideInputPath).map(new MapFunction<String, Tuple2<String, String>>() {
+    private static SideInput<BatchPayload> createKeyedSideInput(String sideInputPath, StreamExecutionEnvironment env) {
+        DataStream<BatchPayload> sideSource = env.readTextFile(sideInputPath).map(new MapFunction<String, BatchPayload>() {
             @Override
-            public Tuple2<String, String> map(String s) throws Exception {
-                String[] fields = s.split(",");
-                String coilID = fields[2];
-                String features = "";
-                for (int i = 3; i < fields.length; i++) {
-                    features = features + fields[i] + ",";
-
-                }
-                return new Tuple2<String, String>(coilID, features);
+            public BatchPayload map(String s) throws Exception {
+                return new BatchPayload(s);
             }
         });
-        return new SideInput<Tuple2<String, String>>();
-        //return env.newKeyedSideInput(sideSource, 0);
+        return env.newKeyedSideInput(sideSource, new KeySelector<StreamPayload, Integer>() {
+            @Override
+            public Integer getKey(StreamPayload value) throws Exception {
+                return value.getId();
+            }
+        });
     }
 
     static class SideInput<T> {}

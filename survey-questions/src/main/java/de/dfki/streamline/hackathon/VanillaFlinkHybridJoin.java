@@ -15,10 +15,12 @@
  */
 package de.dfki.streamline.hackathon;
 
+import de.dfki.streamline.hackathon.common.BatchPayload;
 import de.dfki.streamline.hackathon.common.EOFMarker;
+import de.dfki.streamline.hackathon.common.EnrichedPayload;
+import de.dfki.streamline.hackathon.common.StreamPayload;
 import de.dfki.streamline.hackathon.common.TextInputFormatWithEOF;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.Partitioner;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -53,63 +55,6 @@ import java.util.Properties;
 
 public class VanillaFlinkHybridJoin {
 
-
-	public static class StreamPayload implements Serializable {
-
-		public StreamPayload(String str) {
-
-		}
-
-		public int getId() {
-			return 0;
-		}
-
-		public Long getTimestamp() {
-			return 0l;
-		}
-	}
-
-	public static class BatchPayload implements Serializable {
-
-		public BatchPayload(String str) {
-
-		}
-
-		public int getId() {
-			return 0;
-		}
-
-
-	}
-
-	public static class EnrichedPayload implements Serializable {
-
-
-		EnrichedPayload(StreamPayload p) {
-
-		}
-
-		EnrichedPayload(BatchPayload p) {
-
-		}
-
-		public EnrichedPayload enrich(StreamPayload p) {
-			return this;
-		}
-
-		public EnrichedPayload enrich(BatchPayload p) {
-			return this;
-		}
-
-
-		public int getId() {
-			return 0;
-		}
-
-		public Long getTimestamp() {
-			return 0l;
-		}
-	}
 
 	public static class PayloadSchema implements DeserializationSchema<StreamPayload>, SerializationSchema<StreamPayload> {
 
@@ -283,6 +228,7 @@ public class VanillaFlinkHybridJoin {
 
 
 		DataStream<EnrichedPayload> intermediate = stream.connect(batchData).flatMap(new BatchStreamingJoin());
+
 
 
 		intermediate.addSink(new SinkFunction<EnrichedPayload>() {
