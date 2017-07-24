@@ -109,11 +109,11 @@ public class StreamlineHybridLinearRegression {
             return this;
         }
 
-        RegressionModel fit(AllWindowedStream<String, TimeWindow> streamingTrainingSet, SideInput<LabeledVector> histDsHandle) {
+        RegressionModel fit(AllWindowedStream<LabeledVector, TimeWindow> streamingTrainingSet, SideInput<LabeledVector> histDsHandle) {
             return new RegressionModel();
         }
 
-        void predict(RegressionModel model, AllWindowedStream<String, TimeWindow> testStream) {
+        void predict(RegressionModel model, AllWindowedStream<LabeledVector, TimeWindow> testStream) {
         }
     }
 
