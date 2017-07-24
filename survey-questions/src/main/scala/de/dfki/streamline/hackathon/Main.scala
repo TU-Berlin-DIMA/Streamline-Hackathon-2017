@@ -1,4 +1,4 @@
-package de.dfki.streamline_hackaton
+package de.dfki.streamline.hackaton
 
 /**
   * @author behrouz
