@@ -11,7 +11,6 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import javax.annotation.Nullable;
-import java.awt.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -51,6 +50,7 @@ public class StreamlineHybridLinearRegression {
 
     }
 
+    // Everything below is dummy code to make the code compile
     private static class TimeStampAndWaterMarkAssigner implements
             org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks<LabeledVector> {
         @Nullable
