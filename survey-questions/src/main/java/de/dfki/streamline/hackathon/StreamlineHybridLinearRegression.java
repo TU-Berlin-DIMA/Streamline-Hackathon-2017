@@ -7,6 +7,8 @@ import org.apache.flink.ml.math.DenseVector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author behrouz
  */
@@ -16,16 +18,13 @@ public class StreamlineHybridLinearRegression {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<Tuple2<Integer, LabeledVector>> histDataSet = env.readTextFile("hdfs://mycluster/hist.dataset").
-                map(new VectorParser());
+        DataStream<Tuple2<Integer, LabeledVector>> histDataSet = env.readTextFile("hdfs://mycluster/hist.dataset")
+                .map(new VectorParser());
 
         String trainingHost = "streamline-hackathon.de/training-stream";
         DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(trainingHost, 8080, env)
                 .map(new VectorParser());
 
-        String testHost = "streamline-hackathon.de/test-stream";
-        DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, env)
-                .map(new VectorParser());
 
         HybridLinearRegression regressor = new HybridLinearRegression()
                 .withInitWeights(DenseVector.zeros(NUMBER_OF_FEATURES), 0.0)
@@ -33,13 +32,16 @@ public class StreamlineHybridLinearRegression {
 
         SideInput<LabeledVector> historicalDataHandle = env.newForwardedSideInput(histDataSet);
 
-        RegressionModel model = regressor
+        DataStream<RegressionModel> model = regressor
                 .setBatchDataSet(historicalDataHandle)
-                .fit(trainingStream);
+                .prequentialTrain(trainingStream);
 
-        regressor.predict(model, testStream);
+        writeToKafka(model, TimeUnit.MINUTES, 5);
 
         env.execute();
+    }
+
+    private static void writeToKafka(DataStream<RegressionModel> model, TimeUnit minutes, int interval) {
     }
 
     private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
@@ -96,8 +98,8 @@ public class StreamlineHybridLinearRegression {
             return this;
         }
 
-        RegressionModel fit(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
-            return new RegressionModel();
+        DataStream<RegressionModel> prequentialTrain(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
+            return null;
         }
 
         void predict(RegressionModel model, DataStream<Tuple2<Integer, LabeledVector>> testStream) {
