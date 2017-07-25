@@ -1,6 +1,8 @@
 package de.dfki.streamline.hackathon;
 
+import de.dfki.streamline.hackathon.common.StreamPayload;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.ml.common.LabeledVector;
 import org.apache.flink.ml.math.DenseVector;
 import org.apache.flink.streaming.api.datastream.AllWindowedStream;
@@ -23,26 +25,26 @@ public class StreamlineHybridLinearRegression {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<LabeledVector> histDataSet = env.readTextFile("hdfs://mycluster/hist.dataset").
+        DataStream<Tuple2<Integer, LabeledVector>> histDataSet = env.readTextFile("hdfs://mycluster/hist.dataset").
                 map(new VectorParser());
 
-        AllWindowedStream<LabeledVector, TimeWindow> streamingTrainingSet = env.addSource(new StreamingSource())
-                .map(new VectorParser())
-                .assignTimestampsAndWatermarks(new TimeStampAndWaterMarkAssigner())
-                .timeWindowAll(Time.of(500, TimeUnit.MILLISECONDS));
+        String trainingHost = "streamline-hackathon.de/training-stream";
+        DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(trainingHost, 8080, env).
+                map(new VectorParser());
 
-        AllWindowedStream<LabeledVector, TimeWindow> testStream = env.addSource(new TestStreamingSource())
-                .map(new VectorParser())
-                .assignTimestampsAndWatermarks(new TimeStampAndWaterMarkAssigner())
-                .timeWindowAll(Time.of(500, TimeUnit.MILLISECONDS));
+        String testHost = "streamline-hackathon.de/test-stream";
+        DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, env).
+                map(new VectorParser());
 
         StreamingLinearRegressionSGD regressor = new StreamingLinearRegressionSGD()
                 .withInitWeights(DenseVector.zeros(NUMBER_OF_FEATURES), 0.0)
                 .withNumIterations(100);
 
-        SideInput<LabeledVector> histDsHandle = env.newForwardedSideInput(histDataSet);
+        SideInput<LabeledVector> historicalDataHandle = env.newForwardedSideInput(histDataSet);
 
-        RegressionModel model = regressor.fit(streamingTrainingSet, histDsHandle);
+        RegressionModel model = regressor
+                .setBatchDataSet(historicalDataHandle)
+                .fit(trainingStream);
 
         regressor.predict(model, testStream);
 
@@ -50,20 +52,10 @@ public class StreamlineHybridLinearRegression {
 
     }
 
-    // Everything below is dummy code to make the code compile
-    private static class TimeStampAndWaterMarkAssigner implements
-            org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks<LabeledVector> {
-        @Nullable
-        @Override
-        public Watermark getCurrentWatermark() {
-            return null;
-        }
-
-        @Override
-        public long extractTimestamp(LabeledVector o, long l) {
-            return 0;
-        }
+    private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
+        return null;
     }
+
 
     private static class StreamingSource implements org.apache.flink.streaming.api.functions.source.SourceFunction<String> {
 
@@ -92,15 +84,16 @@ public class StreamlineHybridLinearRegression {
     }
 
 
-    private static class VectorParser implements MapFunction<String, LabeledVector> {
+    private static class VectorParser implements MapFunction<String, Tuple2<Integer, LabeledVector>> {
 
         @Override
-        public LabeledVector map(String value) throws Exception {
-            return new LabeledVector(0.0, DenseVector.zeros(NUMBER_OF_FEATURES));
+        public Tuple2<Integer, LabeledVector> map(String value) throws Exception {
+            return new Tuple2<>(0, new LabeledVector(0.0, DenseVector.zeros(NUMBER_OF_FEATURES)));
         }
     }
 
     private static class StreamingLinearRegressionSGD {
+
         StreamingLinearRegressionSGD withInitWeights(DenseVector zeros, double v) {
             return this;
         }
@@ -109,11 +102,16 @@ public class StreamlineHybridLinearRegression {
             return this;
         }
 
-        RegressionModel fit(AllWindowedStream<LabeledVector, TimeWindow> streamingTrainingSet, SideInput<LabeledVector> histDsHandle) {
+        StreamingLinearRegressionSGD setBatchDataSet(SideInput<LabeledVector> batchDataSet) {
+            return this;
+        }
+
+        RegressionModel fit(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
             return new RegressionModel();
         }
 
-        void predict(RegressionModel model, AllWindowedStream<LabeledVector, TimeWindow> testStream) {
+        void predict(RegressionModel model, DataStream<Tuple2<Integer, LabeledVector>> testStream) {
+
         }
     }
 
