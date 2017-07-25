@@ -14,7 +14,6 @@ public class StreamlineHybridLinearRegression {
     static int NUMBER_OF_FEATURES = 100;
 
     public static void main(String[] args) throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
         DataStream<Tuple2<Integer, LabeledVector>> histDataSet = env.readTextFile("hdfs://mycluster/hist.dataset").
@@ -41,7 +40,6 @@ public class StreamlineHybridLinearRegression {
         regressor.predict(model, testStream);
 
         env.execute();
-
     }
 
     private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
