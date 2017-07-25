@@ -29,12 +29,12 @@ public class StreamlineHybridLinearRegression {
                 map(new VectorParser());
 
         String trainingHost = "streamline-hackathon.de/training-stream";
-        DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(trainingHost, 8080, env).
-                map(new VectorParser());
+        DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(trainingHost, 8080, env)
+                .map(new VectorParser());
 
         String testHost = "streamline-hackathon.de/test-stream";
-        DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, env).
-                map(new VectorParser());
+        DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, env)
+                .map(new VectorParser());
 
         StreamingLinearRegressionSGD regressor = new StreamingLinearRegressionSGD()
                 .withInitWeights(DenseVector.zeros(NUMBER_OF_FEATURES), 0.0)
