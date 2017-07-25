@@ -46,8 +46,7 @@ public class VanillaFlinkLinearRegression {
 
     private static void trainStreamingModel(String host, String modelPath) throws Exception {
         StreamExecutionEnvironment streamingEnv = StreamExecutionEnvironment.getExecutionEnvironment();
-
-
+        
         DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(host, 8080, streamingEnv)
                 .map(new VectorParser());
 
