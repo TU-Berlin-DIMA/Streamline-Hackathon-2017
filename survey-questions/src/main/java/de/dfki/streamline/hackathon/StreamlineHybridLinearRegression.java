@@ -1,19 +1,11 @@
 package de.dfki.streamline.hackathon;
 
-import de.dfki.streamline.hackathon.common.StreamPayload;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.ml.common.LabeledVector;
 import org.apache.flink.ml.math.DenseVector;
-import org.apache.flink.streaming.api.datastream.AllWindowedStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-
-import javax.annotation.Nullable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author behrouz
@@ -36,7 +28,7 @@ public class StreamlineHybridLinearRegression {
         DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, env)
                 .map(new VectorParser());
 
-        StreamingLinearRegressionSGD regressor = new StreamingLinearRegressionSGD()
+        HybridLinearRegression regressor = new HybridLinearRegression()
                 .withInitWeights(DenseVector.zeros(NUMBER_OF_FEATURES), 0.0)
                 .withNumIterations(100);
 
@@ -92,17 +84,17 @@ public class StreamlineHybridLinearRegression {
         }
     }
 
-    private static class StreamingLinearRegressionSGD {
+    private static class HybridLinearRegression {
 
-        StreamingLinearRegressionSGD withInitWeights(DenseVector zeros, double v) {
+        HybridLinearRegression withInitWeights(DenseVector zeros, double v) {
             return this;
         }
 
-        StreamingLinearRegressionSGD withNumIterations(int i) {
+        HybridLinearRegression withNumIterations(int i) {
             return this;
         }
 
-        StreamingLinearRegressionSGD setBatchDataSet(SideInput<LabeledVector> batchDataSet) {
+        HybridLinearRegression setBatchDataSet(SideInput<LabeledVector> batchDataSet) {
             return this;
         }
 
