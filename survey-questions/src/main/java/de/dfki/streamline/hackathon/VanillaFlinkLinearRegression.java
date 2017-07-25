@@ -9,6 +9,8 @@ import org.apache.flink.ml.math.DenseVector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author behrouz
  */
@@ -16,37 +18,61 @@ public class VanillaFlinkLinearRegression {
     static int NUMBER_OF_FEATURES = 100;
 
     public static void main(String[] args) throws Exception {
+        String inputData = "hdfs://mycluster/hist.dataset";
+        String modelPath = "~/mynode/regression-model/";
+        trainBatchModel(inputData, modelPath);
+
+        String host = "streamline-hackathon.de/training-stream";
+        trainStreamingModel(host, modelPath);
+
+    }
+
+    private static void trainBatchModel(String inputData, String outputPath) throws Exception {
         ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
 
-        DataSet<Tuple2<Integer, LabeledVector>> trainingDataSet = batchEnv.readTextFile("hdfs://mycluster/hist.dataset")
+        DataSet<Tuple2<Integer, LabeledVector>> trainingDataSet = batchEnv.readTextFile(inputData)
                 .map(new VectorParser());
 
         LinearRegressionSGD regressor = new LinearRegressionSGD()
                 .withInitWeights(DenseVector.zeros(NUMBER_OF_FEATURES), 0.0)
                 .withNumIterations(100);
 
-        RegressionModel batchRegressionModel = regressor.fit(trainingDataSet);
+        regressor.fit(trainingDataSet);
+
+        writeModelToDisk(regressor, outputPath);
 
         batchEnv.execute();
+    }
 
+    private static void trainStreamingModel(String host, String modelPath) throws Exception {
         StreamExecutionEnvironment streamingEnv = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        String trainingHost = "streamline-hackathon.de/training-stream";
-        DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(trainingHost, 8080, streamingEnv)
+
+        DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(host, 8080, streamingEnv)
                 .map(new VectorParser());
 
-        String testHost = "streamline-hackathon.de/test-stream";
-        DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, streamingEnv)
-                .map(new VectorParser());
+        LinearRegressionSGD modelBatch = loadInitialModel(modelPath);
 
         StreamingLinearRegressionSGD streamRegressor = new StreamingLinearRegressionSGD()
-                .withInitWeights(batchRegressionModel.getWeightVector(), batchRegressionModel.getIntercept());
+                .withInitialModel(modelBatch);
 
-        RegressionModel model = streamRegressor.fit(trainingStream);
+        streamRegressor.prequentialTrain(trainingStream);
 
-        streamRegressor.predict(model, testStream);
+        writeToKafka(streamRegressor, TimeUnit.MINUTES, 5);
 
         streamingEnv.execute();
+    }
+
+    private static void writeToKafka(StreamingLinearRegressionSGD streamRegressor, TimeUnit timeUnit, int interval) {
+
+    }
+
+    private static LinearRegressionSGD loadInitialModel(String modelPath) {
+        return new LinearRegressionSGD();
+    }
+
+    private static void writeModelToDisk(LinearRegressionSGD regressor, String s) {
+
     }
 
     private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
@@ -69,34 +95,23 @@ public class VanillaFlinkLinearRegression {
             return this;
         }
 
-        public RegressionModel fit(DataSet<Tuple2<Integer, LabeledVector>> trainingDataSet) {
-            return new RegressionModel();
+        public void fit(DataSet<Tuple2<Integer, LabeledVector>> trainingDataSet) {
+
         }
     }
 
     private static class StreamingLinearRegressionSGD {
 
-        StreamingLinearRegressionSGD withInitWeights(DenseVector zeros, double v) {
-            return this;
+        void prequentialTrain(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
         }
 
-
-        RegressionModel fit(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
-            return new RegressionModel();
-        }
-
-        void predict(RegressionModel model, DataStream<Tuple2<Integer, LabeledVector>> testStream) {
+        void predict(DataStream<Tuple2<Integer, LabeledVector>> testStream) {
 
         }
-    }
 
-    private static class RegressionModel {
-        public DenseVector getWeightVector() {
+        StreamingLinearRegressionSGD withInitialModel(LinearRegressionSGD modelBatch) {
             return null;
         }
-
-        public double getIntercept() {
-            return 0.0;
-        }
     }
+
 }
