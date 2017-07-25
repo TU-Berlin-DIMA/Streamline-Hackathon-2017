@@ -51,10 +51,10 @@ public class VanillaFlinkLinearRegression {
         DataStream<Tuple2<Integer, LabeledVector>> trainingStream = createStreamSource(host, 8080, streamingEnv)
                 .map(new VectorParser());
 
-        LinearRegressionSGD modelBatch = loadInitialModel(modelPath);
+        LinearRegressionSGD batchModel = loadInitialModel(modelPath);
 
         StreamingLinearRegressionSGD streamRegressor = new StreamingLinearRegressionSGD()
-                .withInitialModel(modelBatch);
+                .withInitialModel(batchModel);
 
         streamRegressor.prequentialTrain(trainingStream);
 
@@ -72,7 +72,6 @@ public class VanillaFlinkLinearRegression {
     }
 
     private static void writeModelToDisk(LinearRegressionSGD regressor, String s) {
-
     }
 
     private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
@@ -103,10 +102,6 @@ public class VanillaFlinkLinearRegression {
     private static class StreamingLinearRegressionSGD {
 
         void prequentialTrain(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
-        }
-
-        void predict(DataStream<Tuple2<Integer, LabeledVector>> testStream) {
-
         }
 
         StreamingLinearRegressionSGD withInitialModel(LinearRegressionSGD modelBatch) {

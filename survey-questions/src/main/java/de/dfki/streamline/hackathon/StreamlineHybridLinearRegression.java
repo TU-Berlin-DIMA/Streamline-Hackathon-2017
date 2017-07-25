@@ -32,47 +32,20 @@ public class StreamlineHybridLinearRegression {
 
         SideInput<LabeledVector> historicalDataHandle = env.newForwardedSideInput(histDataSet);
 
-        DataStream<RegressionModel> model = regressor
-                .setBatchDataSet(historicalDataHandle)
+        regressor.setBatchDataSet(historicalDataHandle)
                 .prequentialTrain(trainingStream);
 
-        writeToKafka(model, TimeUnit.MINUTES, 5);
+        writeToKafka(regressor, TimeUnit.MINUTES, 5);
 
         env.execute();
     }
 
-    private static void writeToKafka(DataStream<RegressionModel> model, TimeUnit minutes, int interval) {
+    private static void writeToKafka(HybridLinearRegression streamRegressor, TimeUnit timeUnit, int interval) {
+
     }
 
     private static DataStream<String> createStreamSource(String host, int i, StreamExecutionEnvironment env) {
         return null;
-    }
-
-
-    private static class StreamingSource implements org.apache.flink.streaming.api.functions.source.SourceFunction<String> {
-
-        @Override
-        public void run(SourceContext<String> sourceContext) throws Exception {
-
-        }
-
-        @Override
-        public void cancel() {
-
-        }
-    }
-
-    private static class TestStreamingSource implements org.apache.flink.streaming.api.functions.source.SourceFunction<String> {
-
-        @Override
-        public void run(SourceContext<String> sourceContext) throws Exception {
-
-        }
-
-        @Override
-        public void cancel() {
-
-        }
     }
 
 
@@ -84,7 +57,7 @@ public class StreamlineHybridLinearRegression {
         }
     }
 
-    private static class HybridLinearRegression {
+    static class HybridLinearRegression {
 
         HybridLinearRegression withInitWeights(DenseVector zeros, double v) {
             return this;
@@ -101,12 +74,7 @@ public class StreamlineHybridLinearRegression {
         DataStream<RegressionModel> prequentialTrain(DataStream<Tuple2<Integer, LabeledVector>> trainingStream) {
             return null;
         }
-
-        void predict(RegressionModel model, DataStream<Tuple2<Integer, LabeledVector>> testStream) {
-
-        }
     }
-
 
     private class SideInput<T> {
     }
