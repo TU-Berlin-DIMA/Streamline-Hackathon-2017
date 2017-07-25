@@ -39,13 +39,12 @@ public class VanillaFlinkLinearRegression {
         DataStream<Tuple2<Integer, LabeledVector>> testStream = createStreamSource(testHost, 8080, streamingEnv)
                 .map(new VectorParser());
 
-
         StreamingLinearRegressionSGD streamRegressor = new StreamingLinearRegressionSGD()
                 .withInitWeights(batchRegressionModel.getWeightVector(), batchRegressionModel.getIntercept());
 
-        streamRegressor.fit(trainingStream);
+        RegressionModel model = streamRegressor.fit(trainingStream);
 
-        streamRegressor.fit(testStream);
+        streamRegressor.predict(model, testStream);
 
         streamingEnv.execute();
     }
