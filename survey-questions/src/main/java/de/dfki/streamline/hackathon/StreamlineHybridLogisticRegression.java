@@ -44,13 +44,13 @@ public class StreamlineHybridLogisticRegression {
 
         DataStream<Double> quality = trainingStream.keyBy(1)
                 .flatMap(new RichFlatMapFunction<LabeledVector, Double>() {
+
                     StochasticGradientDescent stochasticGradientDescentRoutine;
 
                     @Override
                     public void open(Configuration parameters) throws Exception {
                         super.open(parameters);
                         stochasticGradientDescentRoutine = new StochasticGradientDescent();
-
                     }
 
                     @Override
@@ -85,7 +85,6 @@ public class StreamlineHybridLogisticRegression {
                         out.collect(errorRate);
                     }
                 }).withSideInput(sideInput);
-
 
         quality.addSink(new SinkFunction<Double>() {
             @Override
