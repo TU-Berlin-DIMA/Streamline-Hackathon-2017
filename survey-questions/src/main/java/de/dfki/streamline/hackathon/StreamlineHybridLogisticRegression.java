@@ -76,12 +76,12 @@ public class StreamlineHybridLogisticRegression {
 
                             miniBatch.add(training);
                             gradientVector = stochasticGradientDescentRoutine
-                                    .withInitialWeights(model.getWeights() + gradientVector)
+                                    .withInitialWeights(model.getWeights().add(gradientVector))
                                     .miniBatchUpdate(miniBatch)
                                     .getGradientVector();
 
                         }
-                        
+
                         pushToParameterServer("hybrid-linear-regression", gradientVector, currentErrorRate);
                         out.collect(currentErrorRate);
                     }
