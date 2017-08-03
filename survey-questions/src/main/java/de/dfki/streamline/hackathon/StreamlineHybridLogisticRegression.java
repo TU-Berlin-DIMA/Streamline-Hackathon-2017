@@ -73,8 +73,7 @@ public class StreamlineHybridLogisticRegression {
                                     miniBatch.add(trainingVector);
                                 }
                             }
-
-                            miniBatch.add(training);
+                            
                             gradientVector = stochasticGradientDescentRoutine
                                     .withInitialWeights(model.getWeights().add(gradientVector))
                                     .miniBatchUpdate(miniBatch)
