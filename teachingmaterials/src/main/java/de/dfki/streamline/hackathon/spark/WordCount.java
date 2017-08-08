@@ -33,16 +33,16 @@ public class WordCount {
                 // sum up the second field
                 .reduceByKeyAndWindow(new WordCounter(), Durations.minutes(5));
 
-        // Print the first ten elements of each RDD generated in this DStream to the console
+        // Print result in command line
         counts.print();
 
-        jssc.start();              // Start the computation
-        jssc.awaitTermination();   // Wait for the computation to terminate
-
-
+        // Start the computation
+        jssc.start();
+        // Wait for the computation to terminate
+        jssc.awaitTermination();
     }
 
-    private static class Splitter implements FlatMapFunction<String, String> {
+    public static class Splitter implements FlatMapFunction<String, String> {
         @Override
         public Iterator<String> call(String value) throws Exception {
             return Arrays.asList(value.split(" ")).iterator();
@@ -50,14 +50,14 @@ public class WordCount {
     }
 
 
-    private static class WordCounter implements Function2<Integer, Integer, Integer> {
+    public static class WordCounter implements Function2<Integer, Integer, Integer> {
         @Override
         public Integer call(Integer value1, Integer value2) throws Exception {
             return value1 + value2;
         }
     }
 
-    private static class ToPair implements PairFunction<String, String, Integer> {
+    public static class ToPair implements PairFunction<String, String, Integer> {
         @Override
         public Tuple2<String, Integer> call(String value) throws Exception {
             return new Tuple2<>(value, 1);

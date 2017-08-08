@@ -28,7 +28,7 @@ public class FlatMap {
         //Create dstream from a queue of rdds
         JavaDStream<Integer> integers2 = ssc.queueStream(queue);
 
-        // Regular Map = Takes one element and produces one element
+        // Flat Map = Takes one element and produces 0 or more elements
         JavaDStream<Integer> doubleIntegers = integers2.flatMap(new FlatMapFunction<Integer, Integer>() {
             @Override
             public Iterator<Integer> call(Integer value) throws Exception {
